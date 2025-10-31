@@ -3,6 +3,8 @@
 all:
 
 include Make.vars
+OBJS += devices/input.o
+OBJS += threads/palloc.o
 
 DIRS = $(sort $(addprefix build/,$(KERNEL_SUBDIRS) $(TEST_SUBDIRS) lib/user))
 

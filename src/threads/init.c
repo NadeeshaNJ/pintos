@@ -2,6 +2,8 @@
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
+#include <lib/string.h>
+#include <lib/stdio.h>
 #include <limits.h>
 #include <random.h>
 #include <stddef.h>
@@ -22,6 +24,9 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "devices/input.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -38,6 +43,7 @@
 #include "filesys/fsutil.h"
 #endif
 
+extern size_t ram_pages;
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -134,6 +140,58 @@ pintos_init (void)
     run_actions (argv);
   } else {
     // TODO: no command line passed to kernel. Run interactively 
+	while(true){
+		printf("CS2043> ");
+
+		char user_input[20];
+		int track_of_position = 0;
+
+		while(true){
+		    char letter = input_getc();
+		    putchar(letter);
+		    if (letter == '\r'){
+		    	putchar('\n');
+		        user_input[track_of_position] = '\0';
+		        
+		        break;
+			}
+		    if (letter == '\b'){
+		    	if (track_of_position > 0) {
+		    		printf(" \b");
+		    		track_of_position--; 
+			}
+        		continue;
+		    }
+		    user_input[track_of_position] = letter;
+		    track_of_position ++;
+    		}
+		
+		if (strcmp(user_input, "whoami") == 0){
+			printf("Nadeesha Jayamanne\n");
+			printf("Index No: 230272\n");
+		}
+		else if (strcmp(user_input, "shutdown") == 0){
+			printf("Shutting Down ...\n");
+			shutdown_power_off();
+		}
+		else if (strcmp(user_input, "time") == 0)
+			printf("Number of seconds passed since Unix epoch is %lu \n",rtc_get_time());
+		else if (strcmp(user_input, "ram") == 0)
+			printf("Available RAM for OS is %u KB\n",init_ram_pages *PGSIZE/1024);
+		else if(strcmp(user_input, "thread") == 0)
+			thread_print_stats();
+		else if(strcmp(user_input, "priority") == 0)
+			printf("Priority of the current thread is %d\n",thread_get_priority());
+		else if (strcmp(user_input,"exit") == 0) {
+			printf("Exiting Shell...\n");
+			break;
+		}
+		else{
+			printf("Invalid command\n");
+			printf("Below are some possible commands for you to try Nadeesha\n");
+			printf(" whoami \n shutdow \n time \n ram \n priority \n exit \n");
+		}
+	}
   }
 
   /* Finish up. */
