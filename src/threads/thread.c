@@ -464,6 +464,23 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+#ifdef USERPROG
+  t->exit_status = -1;
+  sema_init (&t->wait_sema, 0);
+  sema_init (&t->load_sema, 0);
+  t->load_success = false;
+  t->waited = false;
+  list_init (&t->child_statuses);
+  t->my_status = NULL;
+  t->parent = NULL;
+  t->executable = NULL;
+  t->next_fd = 2;
+  
+  int i;
+  for (i = 0; i < 128; i++)
+    t->fd_table[i] = NULL;
+#endif
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -563,6 +580,22 @@ schedule (void)
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
+}
+
+/* Returns the thread with the given TID, or NULL if not found. */
+struct thread *
+thread_get_by_tid (tid_t tid)
+{
+  struct list_elem *e;
+  
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (t->tid == tid)
+        return t;
+    }
+  return NULL;
 }
 
 /* Returns a tid to use for a new thread. */

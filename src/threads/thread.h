@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -80,6 +81,20 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+
+#ifdef USERPROG
+struct child_status
+  {
+    tid_t tid;
+    int exit_status;
+    bool waited;
+    bool load_success;
+    struct semaphore wait_sema;
+    struct semaphore load_sema;
+    struct list_elem elem;
+  };
+#endif
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -94,8 +109,20 @@ struct thread
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
-    /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+    uint32_t *pagedir;
+    
+    int exit_status;
+    struct semaphore wait_sema;
+    struct semaphore load_sema;
+    bool load_success;
+    bool waited;
+    struct list child_statuses;
+    struct child_status *my_status;
+    struct list_elem child_elem;
+    struct thread *parent;
+    struct file *executable;
+    struct file *fd_table[128];
+    int next_fd;
 #endif
 
     /* Owned by thread.c. */
@@ -122,6 +149,7 @@ void thread_unblock (struct thread *);
 struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
+struct thread *thread_get_by_tid (tid_t tid);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
