@@ -8,9 +8,7 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Nadeesha Jayamanne nadeeshaj.23@cse.mrt.ac.lk
 
 ---- PRELIMINARIES ----
 
@@ -21,6 +19,13 @@ FirstName LastName <email@domain.example>
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
 
+Sources consulted:
+- Pintos Guide – https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html  
+- OSDev Wiki – https://wiki.osdev.org/System_call  
+- GitHub student discussion (for ideas only, not code) – https://github.com/kaist-cp/pintos-kaist  
+- Pintos Semaphore usage notes – https://web.stanford.edu/class/cs140/projects/pintos/pintos_6.html  
+
+
 			   ARGUMENT PASSING
 			   ================
 
@@ -30,19 +35,33 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+No new structs added. Only used local variables and existing `struct thread`.  
+Used `char *argv[]` for pushing arguments onto the stack in correct order.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+I used `strtok_r()` to split the command into program name and arguments.  
+Arguments were pushed in reverse order to keep argv[] aligned.  
+Used word alignment to avoid stack overflow.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+`strtok_r()` is reentrant, which avoids shared state issues during context switches.  
+`strtok()` would break if multiple processes use it at once.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+Unix shells handle argument separation, which is cleaner and more flexible.  
+It lets users combine commands and redirections easily.  
+Also keeps kernel-side logic simpler.
 
 			     SYSTEM CALLS
 			     ============
@@ -53,14 +72,28 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Added a global `struct lock filesys_lock` for file system synchronization.  
+Each process keeps a simple file table:
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+Each process has its own file table.  
+File descriptors are unique only within a process, not system-wide.  
+`fd 0` and `fd 1` are reserved for input/output.
+
+
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+For user data read/write, I used a helper `validate_ptr()` to check if the pointer is valid  
+and below `PHYS_BASE`. If valid, I read directly; else, the process exits.  
+If a bad pointer still caused a page fault, `page_fault()` handled it safely.
+
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -69,8 +102,17 @@ FirstName LastName <email@domain.example>
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+If a full page (4096 bytes) is copied, the table might be checked once or twice (beginning and end).  
+For 2 bytes, usually one lookup is enough.  
+Maybe batching reads could reduce lookups, but Pintos is small-scale, so I left it simple.
+
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+For `wait`, I used a `child_status` struct that stores exit codes and semaphores.  
+Parent waits using a semaphore until the child exits, then reads the exit code and frees memory.
+
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -86,12 +128,21 @@ FirstName LastName <email@domain.example>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+To keep things simple, I validated all user pointers first.  
+If one fails, I exit early and release any locks.  
+This avoids deep nested error handling.  
+I used `try-finalize` style cleanup inside the syscall functions to make it readable.
+
+--
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+Used semaphores for both loading and waiting. 
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -100,16 +151,25 @@ FirstName LastName <email@domain.example>
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+Each child has a `child_status` in the parent’s list. 
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+I used direct pointer validation because it’s simple to debug.  
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+Using plain `struct file *` arrays is lightweight and fits Pintos’ scale.  
+Not flexible for advanced features but easy to maintain.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+Kept TID and PID the same (identity mapping).  
 
 			   SURVEY QUESTIONS
 			   ================
